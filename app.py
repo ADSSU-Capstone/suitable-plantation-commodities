@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import os
 import glob
-import re
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -12,25 +11,19 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder, OneHotEncoder
 from sklearn.model_selection import (train_test_split, GridSearchCV,
                                      StratifiedKFold, cross_val_score)
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
-                             f1_score, confusion_matrix, classification_report,
-                             mean_squared_error, mean_absolute_error)
+                             f1_score, confusion_matrix, classification_report)
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
-from sklearn.decomposition import PCA
 
 from mlxtend.frequent_patterns import apriori, fpgrowth, association_rules
 from mlxtend.preprocessing import TransactionEncoder
 
-from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 # ============================================================
 # PAGE CONFIG
@@ -86,6 +79,9 @@ PREDICTIVE_FEATURES = ['MUNI_CITY', 'BARANGAY', 'ZONE', 'TENURE',
 CATEGORICAL_FEATURES = ['MUNI_CITY', 'BARANGAY', 'ZONE', 'TENURE', 'PART_TYP']
 NUMERIC_FEATURES = ['YR_ESTAB', 'AREA_HA']
 
+# Keywords used to auto-detect the header row
+HEADER_KEYWORDS = ['FID', 'MUNI_CITY', 'COMMODITY', 'BARANGAY', 'YR_ESTAB']
+
 
 # ============================================================
 # HELPER — Clean commodity label
@@ -124,7 +120,7 @@ def _clean_commodity_label(val):
 
 
 # ============================================================
-# DATA LOADING
+# DATA LOADING (with header auto-detection)
 # ============================================================
 @st.cache_data(show_spinner=True)
 def load_data():
@@ -158,6 +154,7 @@ def load_data():
     try:
         xls = pd.ExcelFile(filepath)
         sheet_names = xls.sheet_names
+
         # Prefer 'Reforestation' sheet
         target_sheet = None
         for s in sheet_names:
@@ -167,9 +164,33 @@ def load_data():
         if target_sheet is None:
             target_sheet = sheet_names[0]
 
-        df = pd.read_excel(xls, sheet_name=target_sheet, header=0)
+        # ---------- AUTO-DETECT HEADER ROW ----------
+        preview = pd.read_excel(
+            xls, sheet_name=target_sheet, header=None, nrows=10
+        )
+
+        header_row = 0
+        for i in range(len(preview)):
+            row_vals = preview.iloc[i].astype(str).str.upper().tolist()
+            row_vals = [v.strip() for v in row_vals]
+            # Count how many known header keywords are in this row
+            matches = sum(1 for kw in HEADER_KEYWORDS if kw in row_vals)
+            if matches >= 2:
+                header_row = i
+                break
+
+        # ---------- READ WITH DETECTED HEADER ----------
+        df = pd.read_excel(
+            xls, sheet_name=target_sheet, header=header_row
+        )
+
+        # Normalize column names
         df.columns = [str(c).strip().replace('\ufeff', '').upper()
                       for c in df.columns]
+
+        # Drop unnamed columns
+        df = df.loc[:, ~df.columns.str.startswith('UNNAMED')]
+
         return df, None
     except Exception as e:
         return None, f"Error loading file: {e}"
@@ -312,6 +333,14 @@ if df_raw is None:
             "and refresh.")
     st.stop()
 
+# Optional debug expander — shows raw columns for troubleshooting
+with st.expander("🐛 Debug: Raw Loaded Data", expanded=False):
+    st.write(f"**Shape:** {df_raw.shape}")
+    st.write("**Columns:**")
+    st.write(list(df_raw.columns))
+    st.write("**First 3 rows:**")
+    st.dataframe(df_raw.head(3), use_container_width=True)
+
 try:
     df = preprocess(df_raw)
 except KeyError as e:
@@ -321,7 +350,8 @@ except KeyError as e:
     st.stop()
 
 if len(df) < 10:
-    st.error("❌ Not enough data after preprocessing. Please check the dataset.")
+    st.error("❌ Not enough data after preprocessing. "
+             "Please check the dataset.")
     st.stop()
 
 
@@ -385,7 +415,8 @@ tenure_filter = st.sidebar.multiselect(
 
 test_size = st.sidebar.slider("Test Set Size (%)", 10, 40, 20, 5) / 100.0
 cv_folds = st.sidebar.slider("Cross-Validation Folds", 3, 10, 10)
-n_estimators = st.sidebar.slider("Random Forest: n_estimators", 50, 500, 200, 50)
+n_estimators = st.sidebar.slider("Random Forest: n_estimators",
+                                 50, 500, 200, 50)
 max_depth = st.sidebar.selectbox("Random Forest: max_depth",
                                  [None, 10, 20, 30], index=3)
 min_samples_split = st.sidebar.slider("min_samples_split", 2, 10, 2)
@@ -402,7 +433,8 @@ df_f = df[
 ].copy()
 
 if len(df_f) < 10:
-    st.warning("⚠️ Too few records after filtering. Adjust the sidebar filters.")
+    st.warning("⚠️ Too few records after filtering. "
+               "Adjust the sidebar filters.")
     st.stop()
 
 
@@ -948,7 +980,6 @@ with tab6:
         'TENURE': df_f['TENURE'].astype(str),
         'PARTNER': df_f['PART_TYP'].astype(str),
         'COMMODITY': df_f['COMMODITY_CLEAN'].astype(str),
-        'ZONE_TYPE': df_f['ZONE'].astype(str) + '_ZONE',
     })
 
     transactions = transactions_df.values.tolist()
@@ -1078,14 +1109,16 @@ with tab7:
     st.header("💡 Recommendations & Decision Support")
     st.caption("Phase 6 of the DSF — Deployment/Communication of Insights")
 
+    year_min_val = int(df_f['YR_ESTAB'].min()) if df_f['YR_ESTAB'].notna().any() else 'N/A'
+    year_max_val = int(df_f['YR_ESTAB'].max()) if df_f['YR_ESTAB'].notna().any() else 'N/A'
+
     st.markdown(f"""
     ### 📊 Analysis Summary
 
     Based on **{len(df_f):,}** NGP plantation records from
     **{df_f['MUNI_CITY'].nunique()}** municipalities
     (**{', '.join(sorted(df_f['MUNI_CITY'].unique()))}**) covering
-    **{int(df_f['YR_ESTAB'].min())}–{int(df_f['YR_ESTAB'].max())}**,
-    using Random Forest classification:
+    **{year_min_val}–{year_max_val}**, using Random Forest classification:
 
     #### 1. For DENR / CENRO Bunawan
     - **Use the predictive model** to screen new NGP sites before
