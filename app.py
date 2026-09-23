@@ -116,6 +116,19 @@ def _clean_commodity_label(val):
 
 
 # ============================================================
+# HELPER — Version-safe boxplot (Matplotlib 3.9+ renamed labels)
+# ============================================================
+def safe_boxplot(ax, data, labels, patch_artist=True, **kwargs):
+    """Call ax.boxplot() with either `tick_labels` (3.9+) or `labels`."""
+    try:
+        return ax.boxplot(data, tick_labels=labels,
+                          patch_artist=patch_artist, **kwargs)
+    except TypeError:
+        return ax.boxplot(data, labels=labels,
+                          patch_artist=patch_artist, **kwargs)
+
+
+# ============================================================
 # DATA LOADING — header auto-detection, all strings
 # ============================================================
 @st.cache_data(show_spinner=True)
@@ -160,13 +173,13 @@ def load_data():
         if target_sheet is None:
             target_sheet = sheet_names[0]
 
-        # ---------- READ EVERYTHING AS STRING, NO HEADER ----------
+        # Read everything as string, no header
         raw = pd.read_excel(
             xls, sheet_name=target_sheet, header=None, dtype=str
         )
         raw = raw.fillna('')
 
-        # ---------- FIND HEADER ROW ----------
+        # Find header row
         header_row = 0
         HEADER_KEYWORDS_UPPER = [k.upper() for k in HEADER_KEYWORDS]
 
@@ -177,7 +190,7 @@ def load_data():
                 header_row = i
                 break
 
-        # ---------- EXTRACT HEADER NAMES ----------
+        # Extract header names
         header_series = raw.iloc[header_row]
 
         new_cols = []
@@ -190,7 +203,7 @@ def load_data():
                 name = f'COL_{idx}'
             new_cols.append(name.upper())
 
-        # ---------- BUILD CLEAN DATAFRAME ----------
+        # Build clean dataframe
         df = raw.iloc[header_row + 1:].reset_index(drop=True).copy()
         df.columns = new_cols
 
@@ -200,7 +213,7 @@ def load_data():
         # Drop fully empty rows
         df = df.dropna(how='all')
 
-        # Replace empty strings with NaN for later processing
+        # Replace empty strings with NaN
         df = df.replace({'': np.nan})
 
         return df, None
@@ -585,12 +598,14 @@ with tab2:
 
     st.markdown("---")
     st.subheader("📦 Area (ha) Distribution by Commodity Type")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    commodities = list(df_f['COMMODITY_CLEAN'].unique())
-    data_to_plot = [df_f[df_f['COMMODITY_CLEAN'] == c]['AREA_HA']
-                    .dropna().values for c in commodities]
     try:
-        bp = ax.boxplot(data_to_plot, labels=commodities, patch_artist=True)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        commodities = list(df_f['COMMODITY_CLEAN'].unique())
+        data_to_plot = [df_f[df_f['COMMODITY_CLEAN'] == c]['AREA_HA']
+                        .dropna().values for c in commodities]
+
+        bp = safe_boxplot(ax, data_to_plot, commodities, patch_artist=True)
+
         colors_box = ['#1E6F3C', '#2E8B57', '#3CB371', '#66CDAA',
                       '#90EE90', '#95A5A6', '#B0C4DE']
         for patch, color in zip(bp['boxes'], colors_box[:len(commodities)]):
@@ -691,7 +706,7 @@ with tab3:
         rf_pipeline.fit(X_train, y_train)
         y_pred = rf_pipeline.predict(X_test)
 
-    # ---- Determine which classes are actually present ----
+    # Determine which classes are actually present in test/pred
     present_labels = sorted(set(y_test) | set(y_pred))
     present_names = [le_target.classes_[i] for i in present_labels]
 
@@ -728,7 +743,7 @@ with tab3:
     c7.metric("F1-Score (Weighted)", f"{f1_weighted:.4f}")
     c8.metric("Classes Predicted", len(set(y_pred)))
 
-    # Show warning if some classes are missing from test set
+    # Warn if classes are missing from test set
     missing = set(le_target.classes_) - set(present_names)
     if missing:
         st.warning(
@@ -1034,7 +1049,7 @@ with tab6:
 
         if frequent_ap.empty:
             st.warning(f"No frequent itemsets found with min support = "
-                       f"{min_support}.")
+                       f"{min_support}. Try lowering the slider.")
         else:
             c1, c2, c3 = st.columns(3)
             c1.metric("Frequent Itemsets", len(frequent_ap))
