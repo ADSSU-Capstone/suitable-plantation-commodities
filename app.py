@@ -164,7 +164,6 @@ def load_data():
         raw = pd.read_excel(
             xls, sheet_name=target_sheet, header=None, dtype=str
         )
-        # Replace NaN with empty strings right away
         raw = raw.fillna('')
 
         # ---------- FIND HEADER ROW ----------
@@ -217,17 +216,13 @@ def load_data():
 def preprocess(df):
     df = df.copy()
 
-    # ----------------------------------------------------------
     # 1. Column normalization
-    # ----------------------------------------------------------
     df.columns = [str(c).strip().replace('\ufeff', '').upper()
                   for c in df.columns]
     df = df.loc[:, ~df.columns.str.startswith('UNNAMED')]
     df = df.loc[:, ~df.columns.str.startswith('COL_')]
 
-    # ----------------------------------------------------------
     # 2. Auto-detect target column
-    # ----------------------------------------------------------
     target_col = None
     for cand in POSSIBLE_TARGET_COLS:
         if cand in df.columns:
@@ -240,13 +235,10 @@ def preprocess(df):
             f"Available columns: {list(df.columns)}"
         )
 
-    # Drop rows without target
     df = df[df[target_col].notna()]
     df = df[df[target_col].astype(str).str.strip() != '']
 
-    # ----------------------------------------------------------
     # 3. Rename known feature columns
-    # ----------------------------------------------------------
     rename_map = {}
     for col in df.columns:
         cu = col.upper().strip()
@@ -263,24 +255,18 @@ def preprocess(df):
         elif cu == 'NAME_PART': rename_map[col] = 'NAME_PART'
     df = df.rename(columns=rename_map)
 
-    # Store target under a stable internal name
     df['COMMODITY_RAW'] = df[target_col]
 
-    # ----------------------------------------------------------
     # 4. Deduplicate
-    # ----------------------------------------------------------
     key_cols = [c for c in ['FID', 'UNIQ_ID', 'MUNI_CITY', 'BARANGAY',
                             'YR_ESTAB', 'COMMODITY_RAW']
                 if c in df.columns]
     if key_cols:
         df = df.drop_duplicates(subset=key_cols, keep='first')
 
-    # Drop rows with >30% missing
     df = df.dropna(thresh=int(df.shape[1] * 0.7))
 
-    # ----------------------------------------------------------
     # 5. Clean categorical fields
-    # ----------------------------------------------------------
     for col in CATEGORICAL_FEATURES:
         if col not in df.columns:
             df[col] = 'UNKNOWN'
@@ -288,9 +274,7 @@ def preprocess(df):
         df[col] = df[col].replace({'NAN': np.nan, '': np.nan, 'NONE': np.nan})
         df[col] = df[col].fillna('UNKNOWN')
 
-    # ----------------------------------------------------------
-    # 6. Numeric fields (values arrive as strings)
-    # ----------------------------------------------------------
+    # 6. Numeric fields
     if 'YR_ESTAB' not in df.columns:
         df['YR_ESTAB'] = np.nan
     df['YR_ESTAB'] = pd.to_numeric(
@@ -312,9 +296,7 @@ def preprocess(df):
         q99 = df['AREA_HA'].quantile(0.99)
         df['AREA_HA'] = df['AREA_HA'].clip(lower=q1, upper=q99)
 
-    # ----------------------------------------------------------
-    # 7. Target: collapse multi-labels into primary class
-    # ----------------------------------------------------------
+    # 7. Target
     df['COMMODITY_CLEAN'] = df['COMMODITY_RAW'].apply(_clean_commodity_label)
     df = df[df['COMMODITY_CLEAN'].notna()]
 
@@ -353,7 +335,7 @@ if df_raw is None:
             "and refresh.")
     st.stop()
 
-# Debug expander — shows raw columns for troubleshooting
+# Debug expander
 with st.expander("🐛 Debug: Raw Loaded Data", expanded=False):
     st.write(f"**Shape:** {df_raw.shape}")
     st.write("**Columns:**")
@@ -709,17 +691,28 @@ with tab3:
         rf_pipeline.fit(X_train, y_train)
         y_pred = rf_pipeline.predict(X_test)
 
+    # ---- Determine which classes are actually present ----
+    present_labels = sorted(set(y_test) | set(y_pred))
+    present_names = [le_target.classes_[i] for i in present_labels]
+
     acc = accuracy_score(y_test, y_pred)
     prec_macro = precision_score(y_test, y_pred, average='macro',
+                                 labels=present_labels,
                                  zero_division=0)
     rec_macro = recall_score(y_test, y_pred, average='macro',
+                             labels=present_labels,
                              zero_division=0)
-    f1_macro = f1_score(y_test, y_pred, average='macro', zero_division=0)
+    f1_macro = f1_score(y_test, y_pred, average='macro',
+                        labels=present_labels,
+                        zero_division=0)
     prec_weighted = precision_score(y_test, y_pred, average='weighted',
+                                    labels=present_labels,
                                     zero_division=0)
     rec_weighted = recall_score(y_test, y_pred, average='weighted',
+                                labels=present_labels,
                                 zero_division=0)
     f1_weighted = f1_score(y_test, y_pred, average='weighted',
+                           labels=present_labels,
                            zero_division=0)
 
     st.markdown("### 📊 Model Performance Metrics")
@@ -735,11 +728,20 @@ with tab3:
     c7.metric("F1-Score (Weighted)", f"{f1_weighted:.4f}")
     c8.metric("Classes Predicted", len(set(y_pred)))
 
+    # Show warning if some classes are missing from test set
+    missing = set(le_target.classes_) - set(present_names)
+    if missing:
+        st.warning(
+            f"⚠️ These classes are absent from the current test set "
+            f"(too few samples to split): {', '.join(sorted(missing))}"
+        )
+
     st.markdown("---")
     st.markdown("### 📋 Per-Class Classification Report")
     report = classification_report(
         y_test, y_pred,
-        target_names=le_target.classes_,
+        labels=present_labels,
+        target_names=present_names,
         output_dict=True,
         zero_division=0
     )
@@ -748,11 +750,11 @@ with tab3:
 
     st.markdown("---")
     st.markdown("### 🎯 Confusion Matrix")
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred, labels=present_labels)
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Greens',
-                xticklabels=le_target.classes_,
-                yticklabels=le_target.classes_, ax=ax)
+                xticklabels=present_names,
+                yticklabels=present_names, ax=ax)
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
     ax.set_title("Confusion Matrix — Random Forest")
@@ -760,11 +762,12 @@ with tab3:
     st.pyplot(fig)
     plt.close()
 
-    cm_norm = confusion_matrix(y_test, y_pred, normalize='true')
+    cm_norm = confusion_matrix(y_test, y_pred,
+                               labels=present_labels, normalize='true')
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(cm_norm, annot=True, fmt='.2f', cmap='Greens',
-                xticklabels=le_target.classes_,
-                yticklabels=le_target.classes_, ax=ax)
+                xticklabels=present_names,
+                yticklabels=present_names, ax=ax)
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
     ax.set_title("Normalized Confusion Matrix")
@@ -772,6 +775,7 @@ with tab3:
     st.pyplot(fig)
     plt.close()
 
+    # Save to session state
     st.session_state['rf_pipeline'] = rf_pipeline
     st.session_state['le_target'] = le_target
     st.session_state['X_train'] = X_train
@@ -779,6 +783,8 @@ with tab3:
     st.session_state['y_train'] = y_train
     st.session_state['y_test'] = y_test
     st.session_state['y_pred'] = y_pred
+    st.session_state['present_labels'] = present_labels
+    st.session_state['present_names'] = present_names
 
 
 # ------------------------------------------------------------
