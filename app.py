@@ -70,16 +70,13 @@ st.markdown("""
 # ============================================================
 DATA_FILE = 'CENRO Bunawan Data 2015-2025 (1).xlsx'
 
-# Possible target column names (auto-detect whichever exists)
 POSSIBLE_TARGET_COLS = ['COMMODITY_', 'COMMODITY', 'COMMODITY_TYPE']
 
-# Feature columns
 PREDICTIVE_FEATURES = ['MUNI_CITY', 'BARANGAY', 'ZONE', 'TENURE',
                        'PART_TYP', 'YR_ESTAB', 'AREA_HA']
 CATEGORICAL_FEATURES = ['MUNI_CITY', 'BARANGAY', 'ZONE', 'TENURE', 'PART_TYP']
 NUMERIC_FEATURES = ['YR_ESTAB', 'AREA_HA']
 
-# Keywords used to auto-detect the header row
 HEADER_KEYWORDS = ['FID', 'MUNI_CITY', 'COMMODITY', 'BARANGAY', 'YR_ESTAB']
 
 
@@ -95,7 +92,6 @@ def _clean_commodity_label(val):
         return None
     s_lower = s.lower()
 
-    # Combined cases first
     if 'indigenous' in s_lower and 'bamboo' in s_lower:
         return 'Indigenous & Bamboo'
 
@@ -120,7 +116,7 @@ def _clean_commodity_label(val):
 
 
 # ============================================================
-# DATA LOADING (with header auto-detection)
+# DATA LOADING — header auto-detection, all strings
 # ============================================================
 @st.cache_data(show_spinner=True)
 def load_data():
@@ -164,36 +160,54 @@ def load_data():
         if target_sheet is None:
             target_sheet = sheet_names[0]
 
-        # ---------- AUTO-DETECT HEADER ROW ----------
-        preview = pd.read_excel(
-            xls, sheet_name=target_sheet, header=None, nrows=10
+        # ---------- READ EVERYTHING AS STRING, NO HEADER ----------
+        raw = pd.read_excel(
+            xls, sheet_name=target_sheet, header=None, dtype=str
         )
+        # Replace NaN with empty strings right away
+        raw = raw.fillna('')
 
+        # ---------- FIND HEADER ROW ----------
         header_row = 0
-        for i in range(len(preview)):
-            row_vals = preview.iloc[i].astype(str).str.upper().tolist()
-            row_vals = [v.strip() for v in row_vals]
-            # Count how many known header keywords are in this row
-            matches = sum(1 for kw in HEADER_KEYWORDS if kw in row_vals)
+        HEADER_KEYWORDS_UPPER = [k.upper() for k in HEADER_KEYWORDS]
+
+        for i in range(min(10, len(raw))):
+            row_vals = raw.iloc[i].astype(str).str.upper().str.strip().tolist()
+            matches = sum(1 for kw in HEADER_KEYWORDS_UPPER if kw in row_vals)
             if matches >= 2:
                 header_row = i
                 break
 
-        # ---------- READ WITH DETECTED HEADER ----------
-        df = pd.read_excel(
-            xls, sheet_name=target_sheet, header=header_row
-        )
+        # ---------- EXTRACT HEADER NAMES ----------
+        header_series = raw.iloc[header_row]
 
-        # Normalize column names
-        df.columns = [str(c).strip().replace('\ufeff', '').upper()
-                      for c in df.columns]
+        new_cols = []
+        for idx, val in enumerate(header_series):
+            try:
+                name = str(val).strip().replace('\ufeff', '')
+            except Exception:
+                name = ''
+            if name == '' or name.lower() in ('nan', 'none'):
+                name = f'COL_{idx}'
+            new_cols.append(name.upper())
 
-        # Drop unnamed columns
-        df = df.loc[:, ~df.columns.str.startswith('UNNAMED')]
+        # ---------- BUILD CLEAN DATAFRAME ----------
+        df = raw.iloc[header_row + 1:].reset_index(drop=True).copy()
+        df.columns = new_cols
+
+        # Drop placeholder columns
+        df = df.loc[:, ~df.columns.str.startswith('COL_')]
+
+        # Drop fully empty rows
+        df = df.dropna(how='all')
+
+        # Replace empty strings with NaN for later processing
+        df = df.replace({'': np.nan})
 
         return df, None
     except Exception as e:
-        return None, f"Error loading file: {e}"
+        import traceback
+        return None, f"Error loading file: {e}\n\n{traceback.format_exc()}"
 
 
 # ============================================================
@@ -209,6 +223,7 @@ def preprocess(df):
     df.columns = [str(c).strip().replace('\ufeff', '').upper()
                   for c in df.columns]
     df = df.loc[:, ~df.columns.str.startswith('UNNAMED')]
+    df = df.loc[:, ~df.columns.str.startswith('COL_')]
 
     # ----------------------------------------------------------
     # 2. Auto-detect target column
@@ -274,20 +289,25 @@ def preprocess(df):
         df[col] = df[col].fillna('UNKNOWN')
 
     # ----------------------------------------------------------
-    # 6. Numeric fields
+    # 6. Numeric fields (values arrive as strings)
     # ----------------------------------------------------------
     if 'YR_ESTAB' not in df.columns:
         df['YR_ESTAB'] = np.nan
-    df['YR_ESTAB'] = pd.to_numeric(df['YR_ESTAB'], errors='coerce')
+    df['YR_ESTAB'] = pd.to_numeric(
+        df['YR_ESTAB'].astype(str).str.strip(),
+        errors='coerce'
+    )
     if df['YR_ESTAB'].notna().sum() > 0:
         df['YR_ESTAB'] = df['YR_ESTAB'].fillna(df['YR_ESTAB'].median())
 
     if 'AREA_HA' not in df.columns:
         df['AREA_HA'] = np.nan
-    df['AREA_HA'] = pd.to_numeric(df['AREA_HA'], errors='coerce')
+    df['AREA_HA'] = pd.to_numeric(
+        df['AREA_HA'].astype(str).str.strip(),
+        errors='coerce'
+    )
     if df['AREA_HA'].notna().sum() > 0:
         df['AREA_HA'] = df['AREA_HA'].fillna(df['AREA_HA'].median())
-        # Winsorize outliers
         q1 = df['AREA_HA'].quantile(0.01)
         q99 = df['AREA_HA'].quantile(0.99)
         df['AREA_HA'] = df['AREA_HA'].clip(lower=q1, upper=q99)
@@ -333,11 +353,13 @@ if df_raw is None:
             "and refresh.")
     st.stop()
 
-# Optional debug expander — shows raw columns for troubleshooting
+# Debug expander — shows raw columns for troubleshooting
 with st.expander("🐛 Debug: Raw Loaded Data", expanded=False):
     st.write(f"**Shape:** {df_raw.shape}")
     st.write("**Columns:**")
     st.write(list(df_raw.columns))
+    st.write("**Dtypes:**")
+    st.write(df_raw.dtypes.astype(str).to_frame().T)
     st.write("**First 3 rows:**")
     st.dataframe(df_raw.head(3), use_container_width=True)
 
@@ -641,7 +663,6 @@ with tab3:
     le_target = LabelEncoder()
     y_encoded = le_target.fit_transform(y)
 
-    # Stratified split if possible
     try:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y_encoded, test_size=test_size,
@@ -751,7 +772,6 @@ with tab3:
     st.pyplot(fig)
     plt.close()
 
-    # Save to session state
     st.session_state['rf_pipeline'] = rf_pipeline
     st.session_state['le_target'] = le_target
     st.session_state['X_train'] = X_train
@@ -1109,8 +1129,10 @@ with tab7:
     st.header("💡 Recommendations & Decision Support")
     st.caption("Phase 6 of the DSF — Deployment/Communication of Insights")
 
-    year_min_val = int(df_f['YR_ESTAB'].min()) if df_f['YR_ESTAB'].notna().any() else 'N/A'
-    year_max_val = int(df_f['YR_ESTAB'].max()) if df_f['YR_ESTAB'].notna().any() else 'N/A'
+    year_min_val = (int(df_f['YR_ESTAB'].min())
+                    if df_f['YR_ESTAB'].notna().any() else 'N/A')
+    year_max_val = (int(df_f['YR_ESTAB'].max())
+                    if df_f['YR_ESTAB'].notna().any() else 'N/A')
 
     st.markdown(f"""
     ### 📊 Analysis Summary
