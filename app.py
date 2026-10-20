@@ -22,7 +22,6 @@ from sklearn.model_selection import (
     cross_val_score,
     GridSearchCV,
 )
-# FIX: permutation_importance is in sklearn.inspection, not model_selection
 from sklearn.inspection import permutation_importance
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
@@ -39,9 +38,7 @@ from mlxtend.preprocessing import TransactionEncoder
 
 
 DATA_FILE = "CENRO Bunawan Data 2015-2025 (1).xlsx"
-
 POSSIBLE_TARGETS = ["COMMODITY_", "COMMODITY", "COMMODITY_TYPE"]
-
 HEADER_KEYS = ["FID", "MUNI_CITY", "COMMODITY", "BARANGAY", "YR_ESTAB"]
 
 CFG = {
@@ -88,15 +85,9 @@ def clean_commodity(v):
         return "Indigenous"
     if any(k in s for k in ["agroforestry", "rubber", "coffee", "cacao"]):
         return "Agroforestry"
-    if any(k in s for k in [
-        "high value", "mangosteen", "durian", "rambutan",
-        "lanzones", "calamansi",
-    ]):
+    if any(k in s for k in ["high value", "mangosteen", "durian", "rambutan", "lanzones", "calamansi"]):
         return "High Value"
-    if any(k in s for k in [
-        "timber", "falcata", "narra", "lauan",
-        "mahogany", "gmelina", "molave",
-    ]):
+    if any(k in s for k in ["timber", "falcata", "narra", "lauan", "mahogany", "gmelina", "molave"]):
         return "Timber"
     if "fruit" in s or "mango" in s or "lemonsito" in s:
         return "Other Fruit Trees"
@@ -104,10 +95,7 @@ def clean_commodity(v):
 
 
 def locate_file():
-    roots = [
-        ".",
-        os.path.dirname(os.path.abspath(__file__)),
-    ]
+    roots = [".", os.path.dirname(os.path.abspath(__file__))]
     for r in roots:
         candidate = os.path.join(r, DATA_FILE)
         if os.path.exists(candidate):
@@ -169,9 +157,7 @@ def prepare(df):
     df = df.rename(columns=rename_map)
     df["COMMODITY_RAW"] = df[target]
 
-    key_cols = [c for c in ["FID", "UNIQ_ID", "MUNI_CITY",
-                             "BARANGAY", "YR_ESTAB", "COMMODITY_RAW"]
-                if c in df.columns]
+    key_cols = [c for c in ["FID", "UNIQ_ID", "MUNI_CITY", "BARANGAY", "YR_ESTAB", "COMMODITY_RAW"] if c in df.columns]
     if key_cols:
         df = df.drop_duplicates(subset=key_cols, keep="first")
 
@@ -187,9 +173,7 @@ def prepare(df):
     for c in CFG["numeric"]:
         if c not in df.columns:
             df[c] = np.nan
-        df[c] = pd.to_numeric(
-            df[c].astype(str).str.strip(), errors="coerce"
-        )
+        df[c] = pd.to_numeric(df[c].astype(str).str.strip(), errors="coerce")
 
     if "YR_ESTAB" in df.columns and df["YR_ESTAB"].notna().any():
         df["YR_ESTAB"] = df["YR_ESTAB"].fillna(df["YR_ESTAB"].median())
@@ -265,6 +249,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Added Page Title
+st.title("NGP Commodity Suitability Dashboard")
+
 raw_df = read_source()
 
 if raw_df is None:
@@ -316,12 +303,6 @@ y_raw = df["COMMODITY"].copy()
 le = LabelEncoder()
 y = le.fit_transform(y_raw)
 
-st.markdown(
-    f"### Plantation Records: {len(df):,} | Classes: {y_raw.nunique()} "
-    f"| Municipalities: {df['MUNI_CITY'].nunique()} | "
-    f"Barangays: {df['BARANGAY'].nunique()}"
-)
-
 t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
     "Overview",
     "Results by Category",
@@ -334,6 +315,13 @@ t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
 ])
 
 with t1:
+    # Moved this out of the global space and into the Overview tab
+    st.caption(
+        f"Plantation Records: {len(df):,} | Classes: {y_raw.nunique()} "
+        f"| Municipalities: {df['MUNI_CITY'].nunique()} | "
+        f"Barangays: {df['BARANGAY'].nunique()}"
+    )
+    
     st.subheader("Commodity Distribution")
 
     dist = y_raw.value_counts()
