@@ -21,8 +21,9 @@ from sklearn.model_selection import (
     StratifiedKFold,
     cross_val_score,
     GridSearchCV,
-    permutation_importance,
 )
+# FIX: permutation_importance is in sklearn.inspection, not model_selection
+from sklearn.inspection import permutation_importance
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
