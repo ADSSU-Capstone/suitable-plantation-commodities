@@ -23,8 +23,7 @@ from sklearn.model_selection import (
     GridSearchCV,
     permutation_importance,
 )
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -240,10 +239,6 @@ def get_feature_names(pipe, numeric_cols, cat_cols):
     except Exception:
         cat_names = [f"cat_{i}" for i in range(50)]
     return numeric_cols + cat_names
-
-
-def to_display_labels(arr, le):
-    return le.inverse_transform(arr)
 
 
 def safe_boxplot(ax, data, labels):
