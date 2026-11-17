@@ -365,14 +365,11 @@ elif page == "Site Factors of Commodity Suitability":
     if len(mappable) == 0:
         warn("No barangay centroid coordinates are available for the current selection. Supply the optional centroid CSV in the sidebar to render the geographic panel.")
     else:
-        fig_map = px.scatter_map(mappable, lat="lat", lon="lon", size="Records", color="Records",
+        fig_map = px.scatter_mapbox(mappable, lat="lat", lon="lon", size="Records", color="Records",
                                     hover_name="BARANGAY", hover_data=["MUNI_CITY", "Area_HA", "Commodity_Diversity"],
-                                    color_continuous_scale="Teal", title="NGP Parcel Concentration by Barangay")
-        fig_map.update_traces(marker=dict(size=15))
-        fig_map.update_layout(
-            mapbox=dict(style="open-street-map", zoom=9, center=dict(lat=8.12, lon=126.0)),
-            height=480, margin=dict(l=10, r=10, t=40, b=10)
-        )
+                                    color_continuous_scale="Teal", size_max=45, zoom=9,
+                                    mapbox_style="carto-positron", title="NGP Parcel Concentration by Barangay")
+        fig_map.update_layout(height=480, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_map, use_container_width=True)
         top = mappable.sort_values("Records", ascending=False).iloc[0]
         interp(f"Highest concentration is {top['BARANGAY']}, {top['MUNI_CITY']} ({int(top['Records'])} parcels, {top['Area_HA']:.1f} ha). Bubble size encodes parcel count; color gradient encodes the same intensity so spatial hot spots remain readable at any zoom level.")
@@ -393,7 +390,7 @@ elif page == "Site Factors of Commodity Suitability":
     
     fig_sc = px.scatter(fdf, x="YR_ESTAB", y="AREA_HA", color="COMMODITY", size="AREA_HA",
                         hover_data=["MUNI_CITY", "BARANGAY", "TENURE"], title="Establishment Year vs. Area by Commodity",
-                        color_discrete_sequence=TEAL_PALETTE) # FIXED: Using manual palette
+                        color_discrete_sequence=TEAL_PALETTE)
     fig_sc.update_layout(height=420, margin=dict(l=10, r=10, t=40, b=10))
     st.plotly_chart(fig_sc, use_container_width=True)
     interp("Clusters at low area and mid-years indicate smallholder parcels; large-area outliers indicate industrial-scale plantings and should be reviewed for tenure and commodity consistency.")
@@ -427,7 +424,7 @@ elif page == "Predictive Model Construction":
     st.markdown("### Class Distribution in Modeling Set")
     dist = model_df["COMMODITY"].value_counts().reset_index()
     dist.columns = ["Commodity", "Count"]
-    fig_dist = px.bar(dist, x="Commodity", y="Count", color="Commodity", color_discrete_sequence=TEAL_PALETTE, title="Commodity Class Distribution") # FIXED
+    fig_dist = px.bar(dist, x="Commodity", y="Count", color="Commodity", color_discrete_sequence=TEAL_PALETTE, title="Commodity Class Distribution")
     fig_dist.update_layout(height=350, showlegend=False)
     st.plotly_chart(fig_dist, use_container_width=True)
     imbalance_ratio = dist["Count"].max() / dist["Count"].min()
@@ -573,7 +570,7 @@ elif page == "Model Performance & Feature Importance":
             })
             fig_cl = px.scatter(cluster_df, x="PC1", y="PC2", color="Cluster", symbol="Commodity",
                                 hover_data=["Municipality", "Barangay", "Commodity"], title=f"K-Means Site Archetypes (k={n_clusters}, PCA-reduced)",
-                                color_discrete_sequence=TEAL_PALETTE) # FIXED
+                                color_discrete_sequence=TEAL_PALETTE)
             fig_cl.update_layout(height=480)
             st.plotly_chart(fig_cl, use_container_width=True)
             cluster_summary = cluster_df.groupby("Cluster").agg(Parcels=("Commodity", "size")).reset_index()
