@@ -365,11 +365,14 @@ elif page == "Site Factors of Commodity Suitability":
     if len(mappable) == 0:
         warn("No barangay centroid coordinates are available for the current selection. Supply the optional centroid CSV in the sidebar to render the geographic panel.")
     else:
-        fig_map = px.scatter_mapbox(mappable, lat="lat", lon="lon", size="Records", color="Records",
+        # Updated to use px.scatter_map for Plotly 6+ compatibility
+        fig_map = px.scatter_map(mappable, lat="lat", lon="lon", size="Records", color="Records",
                                     hover_name="BARANGAY", hover_data=["MUNI_CITY", "Area_HA", "Commodity_Diversity"],
-                                    color_continuous_scale="Teal", size_max=45, zoom=9,
-                                    mapbox_style="carto-positron", title="NGP Parcel Concentration by Barangay")
-        fig_map.update_layout(height=480, margin=dict(l=10, r=10, t=40, b=10))
+                                    color_continuous_scale="Teal", title="NGP Parcel Concentration by Barangay")
+        fig_map.update_layout(
+            map=dict(style="carto-positron", zoom=9, center=dict(lat=8.12, lon=126.0)),
+            height=480, margin=dict(l=10, r=10, t=40, b=10)
+        )
         st.plotly_chart(fig_map, use_container_width=True)
         top = mappable.sort_values("Records", ascending=False).iloc[0]
         interp(f"Highest concentration is {top['BARANGAY']}, {top['MUNI_CITY']} ({int(top['Records'])} parcels, {top['Area_HA']:.1f} ha). Bubble size encodes parcel count; color gradient encodes the same intensity so spatial hot spots remain readable at any zoom level.")
