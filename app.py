@@ -51,13 +51,16 @@ st.markdown("""
     /* Sidebar File Uploader Override */
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] { background-color: transparent !important; }
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] > div {
-        color: #e6f2f2 !important; border-color: #2a8a86 !important; background-color: #14514f !important;
+        border-color: #2a8a86 !important; background-color: #14514f !important;
+    }
+    /* Force text inside uploader to be readable */
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] div[data-testid="stMarkdownContainer"] p,
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] div[data-testid="stFileUploaderDropzone"] span {
+        color: #e6f2f2 !important; 
     }
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] button {
         background-color: #1a6b67 !important; color: #ffffff !important; border: 1px solid #2a8a86 !important;
     }
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] span,
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] p { color: #e6f2f2 !important; }
 
     /* Sidebar Dropdowns Override */
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
@@ -136,30 +139,46 @@ def load_and_clean(file_bytes, filename):
     if filename.lower().endswith(".csv"):
         df = pd.read_csv(io.BytesIO(file_bytes))
     else:
-        df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=0)
+        # Dynamically find the header row in Excel
+        raw_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=0, header=None)
+        header_row = 0
+        for i, row in raw_df.iterrows():
+            row_str = " ".join([str(val) for val in row.values])
+            if "FID" in row_str and "Shape" in row_str:
+                header_row = i
+                break
+        df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=0, header=header_row)
+        
     raw_n = len(df)
     for col in df.columns:
         if df[col].dtype == object:
             df[col] = df[col].map(clean_text)
     df.columns = [clean_text(c) for c in df.columns]
+    
     needed = ["MUNI_CITY", "BARANGAY", "TENURE", "ZONE", "PART_TYP", "COMMODITY", "YR_ESTAB", "AREA_HA", "FID", "UNIQ_ID"]
     for c in needed:
         if c not in df.columns:
             df[c] = np.nan
+            
     dup_n = df.duplicated(subset=["FID", "UNIQ_ID"], keep="first").sum()
     df = df.drop_duplicates(subset=["FID", "UNIQ_ID"], keep="first").copy()
+    
     df["YR_ESTAB"] = pd.to_numeric(df["YR_ESTAB"], errors="coerce")
     df["AREA_HA"] = pd.to_numeric(df["AREA_HA"], errors="coerce")
+    
     for c in ["MUNI_CITY", "BARANGAY", "TENURE", "ZONE", "PART_TYP"]:
         df[c] = df[c].map(clean_text)
+        
     df["COMMODITY_RAW"] = df["COMMODITY"].map(clean_text)
     df["COMMODITY"] = df["COMMODITY_RAW"].map(map_commodity)
+    
     miss_before = df[needed].isna().sum().sum()
     df = df.dropna(subset=["COMMODITY", "MUNI_CITY", "BARANGAY", "TENURE", "ZONE", "PART_TYP", "YR_ESTAB", "AREA_HA"])
     df = df[df["MUNI_CITY"].isin(VALID_MUNI)]
     df = df[(df["YR_ESTAB"] >= 2015) & (df["YR_ESTAB"] <= 2025)]
     miss_after = df[needed].isna().sum().sum()
     final_n = len(df)
+    
     rules = pd.DataFrame({
         "Rule Applied (Chapter 3)": [
             "Strip invisible Unicode, trim whitespace, collapse blank spaces in all text fields",
