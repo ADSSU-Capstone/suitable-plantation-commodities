@@ -2,10 +2,9 @@ streamlit
 pandas
 numpy
 scikit-learn
-matplotlib
-seaborn
-openpyxl
-xlrd
-mlxtend
-statsmodels
 scipy
+plotly
+openpyxl
+xgboost
+shap
+lime
