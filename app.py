@@ -22,35 +22,63 @@ st.set_page_config(page_title="Bunawan NGP Commodity Suitability Dashboard", lay
 
 st.markdown("""
 <style>
+    /* Base App Styling */
     .stApp { background-color: #f5f7fa; }
     h1, h2, h3 { color: #1a4d4d; font-family: 'Segoe UI', sans-serif; }
-    .app-title { font-size: 2.1rem; font-weight: 800; color: #0f3d3d; letter-spacing: -0.5px; margin-bottom: 0; }
-    .app-sub { font-size: 0.95rem; color: #4a6b6b; margin-top: 0; margin-bottom: 1rem; }
+    
+    /* App Title */
+    .app-title { font-size: 2.2rem; font-weight: 800; color: #0f3d3d; letter-spacing: -0.5px; margin-bottom: 0; margin-top: 1rem; }
+    .app-sub { font-size: 1rem; color: #4a6b6b; margin-top: 0; margin-bottom: 1.5rem; }
+    
+    /* KPI Cards */
     .kpi-card { background: linear-gradient(135deg, #0f5c5c 0%, #1a8080 100%); color: #ffffff;
-                padding: 1.1rem 1.3rem; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
-    .kpi-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; }
-    .kpi-value { font-size: 2.2rem; font-weight: 800; line-height: 1.1; }
-    .interp { background-color: #e8f3f3; border-left: 5px solid #1a8080; padding: 0.7rem 1rem;
-              border-radius: 4px; font-size: 0.9rem; color: #0f3d3d; margin: 0.4rem 0 1.2rem 0; }
-    .warn-box { background-color: #fff4e5; border-left: 5px solid #d97a00; padding: 0.7rem 1rem;
-                border-radius: 4px; font-size: 0.88rem; color: #6b4200; margin: 0.5rem 0 1rem 0; }
-    .justify-box { background-color: #eef2f7; border-left: 5px solid #35558a; padding: 0.7rem 1rem;
-                   border-radius: 4px; font-size: 0.88rem; color: #1e2f4d; margin: 0.5rem 0 1rem 0; }
+                padding: 1.2rem 1.4rem; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    .kpi-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; margin-bottom: 0.3rem; }
+    .kpi-value { font-size: 2.4rem; font-weight: 800; line-height: 1.1; }
+    
+    /* Info and Warning Boxes */
+    .interp { background-color: #e8f3f3; border-left: 5px solid #1a8080; padding: 0.8rem 1.2rem;
+              border-radius: 4px; font-size: 0.95rem; color: #0f3d3d; margin: 0.5rem 0 1.5rem 0; }
+    .warn-box { background-color: #fff4e5; border-left: 5px solid #d97a00; padding: 0.8rem 1.2rem;
+                border-radius: 4px; font-size: 0.9rem; color: #6b4200; margin: 0.5rem 0 1rem 0; }
+    .justify-box { background-color: #eef2f7; border-left: 5px solid #35558a; padding: 0.8rem 1.2rem;
+                   border-radius: 4px; font-size: 0.9rem; color: #1e2f4d; margin: 0.5rem 0 1rem 0; }
+    
+    /* Sidebar Dark Theme */
     section[data-testid="stSidebar"] { background-color: #0f3d3d; }
     section[data-testid="stSidebar"] * { color: #e6f2f2 !important; }
+    
+    /* Sidebar File Uploader Override */
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] { background-color: transparent !important; }
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] > div {
+        color: #e6f2f2 !important; border-color: #2a8a86 !important; background-color: #14514f !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+        background-color: #1a6b67 !important; color: #ffffff !important; border: 1px solid #2a8a86 !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] span,
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] p { color: #e6f2f2 !important; }
+
+    /* Sidebar Dropdowns Override */
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+        background-color: #14514f !important; border-color: #2a8a86 !important; color: #e6f2f2 !important;
+    }
+    
+    /* Sidebar Navigation (Radio Buttons as Tabs) */
     section[data-testid="stSidebar"] .stRadio > div { gap: 0.4rem; }
     section[data-testid="stSidebar"] .stRadio label {
         background-color: #14514f; border: 1.5px solid #2a8a86; border-radius: 6px;
-        padding: 0.55rem 0.8rem; margin: 0; width: 100%; cursor: pointer;
-        font-weight: 600; font-size: 0.85rem; transition: all 0.15s; }
+        padding: 0.6rem 0.9rem; margin: 0; width: 100%; cursor: pointer;
+        font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease-in-out; }
     section[data-testid="stSidebar"] .stRadio label:hover { background-color: #1a6b67; border-color: #4fc3b8; }
     section[data-testid="stSidebar"] .stRadio label[data-checked="true"],
     section[data-testid="stSidebar"] .stRadio input:checked + div {
-        background-color: #ffffff !important; color: #0f3d3d !important; border-color: #ffffff; }
-    section[data-testid="stSidebar"] .stRadio input:checked + div p { color: #0f3d3d !important; }
+        background-color: #ffffff !important; color: #0f3d3d !important; border-color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    section[data-testid="stSidebar"] .stRadio input:checked + div p { color: #0f3d3d !important; font-weight: 800; }
     section[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none; }
+    
+    /* Dataframes */
     .stDataFrame { font-size: 0.85rem; }
-    div[data-testid="stMetricValue"] { font-size: 2rem; font-weight: 800; color: #0f3d3d; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -237,15 +265,19 @@ def train_all(df_train):
     X_scaled = scaler.fit_transform(X_enc)
     Xtr, Xte, ytr, yte = train_test_split(X_scaled, y_enc, test_size=0.20, random_state=42, stratify=y_enc)
     models = {}
+    
     rf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
     rf.fit(Xtr, ytr)
     models["Random Forest"] = rf
+    
     gb = GradientBoostingClassifier(n_estimators=150, random_state=42)
     gb.fit(Xtr, ytr)
     models["Gradient Boosting"] = gb
+    
     svm = SVC(kernel="rbf", probability=True, random_state=42)
     svm.fit(Xtr, ytr)
     models["Support Vector Machine"] = svm
+    
     try:
         from xgboost import XGBClassifier
         xgb = XGBClassifier(n_estimators=150, use_label_encoder=False, eval_metric="mlogloss", random_state=42)
@@ -253,6 +285,7 @@ def train_all(df_train):
         models["XGBoost"] = xgb
     except Exception:
         pass
+        
     try:
         from elapid import MaxentModel
         Xtr_dense = Xtr if not hasattr(Xtr, "toarray") else Xtr.toarray()
@@ -264,6 +297,7 @@ def train_all(df_train):
             pass
     except Exception:
         pass
+        
     cv_scores = {}
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
     for name, m in models.items():
@@ -272,6 +306,7 @@ def train_all(df_train):
             cv_scores[name] = scores
         except Exception:
             cv_scores[name] = np.array([np.nan])
+            
     return models, X_enc.columns.tolist(), le, scaler, Xtr, Xte, ytr, yte, X_scaled, y_enc, cv_scores
 
 @st.cache_resource(show_spinner=False)
@@ -300,10 +335,13 @@ if page == "Data Preprocessing & Cleaning":
     with c2: kpi("Duplicates Removed", f"{dup_n:,}")
     with c3: kpi("Missing Values Addressed", f"{miss_before - miss_after:,}")
     with c4: kpi("Final Valid Records", f"{final_n:,}")
+    
     retention = (final_n / raw_n * 100) if raw_n else 0
     interp(f"Retention rate is {retention:.1f}% ({final_n:,} of {raw_n:,} raw records). All remaining records satisfy the Chapter 3 completeness, municipality-whitelist, and year-range rules and are ready for modeling.")
+    
     st.markdown("### Cleaning Rules Applied")
     st.dataframe(rules, use_container_width=True, hide_index=True)
+    
     st.markdown("### Field Completeness After Cleaning")
     completeness = pd.DataFrame({
         "Field": CAT_FEATURES + NUM_FEATURES + ["COMMODITY"],
@@ -315,12 +353,14 @@ if page == "Data Preprocessing & Cleaning":
 
 elif page == "Site Factors of Commodity Suitability":
     st.markdown("## Site Factors of Commodity Suitability")
+    
     geo = fdf.groupby(["MUNI_CITY", "BARANGAY"]).agg(
         Records=("COMMODITY", "size"), Area_HA=("AREA_HA", "sum"),
         Commodity_Diversity=("COMMODITY", "nunique")).reset_index()
     geo["lat"] = geo.apply(lambda r: centroids.get((r["MUNI_CITY"], r["BARANGAY"]), (np.nan, np.nan))[0], axis=1)
     geo["lon"] = geo.apply(lambda r: centroids.get((r["MUNI_CITY"], r["BARANGAY"]), (np.nan, np.nan))[1], axis=1)
     mappable = geo.dropna(subset=["lat", "lon"])
+    
     if len(mappable) == 0:
         warn("No barangay centroid coordinates are available for the current selection. Supply the optional centroid CSV in the sidebar to render the geographic panel.")
     else:
@@ -332,6 +372,7 @@ elif page == "Site Factors of Commodity Suitability":
         st.plotly_chart(fig_map, use_container_width=True)
         top = mappable.sort_values("Records", ascending=False).iloc[0]
         interp(f"Highest concentration is {top['BARANGAY']}, {top['MUNI_CITY']} ({int(top['Records'])} parcels, {top['Area_HA']:.1f} ha). Bubble size encodes parcel count; color gradient encodes the same intensity so spatial hot spots remain readable at any zoom level.")
+        
     agg = geo.groupby("MUNI_CITY").agg(Records=("Records", "sum"), Area_HA=("Area_HA", "sum"),
                                          Commodity_Diversity=("Commodity_Diversity", "max")).reset_index().sort_values("Records", ascending=False)
     fig_rank = px.bar(agg.sort_values("Records"), x="Records", y="MUNI_CITY", orientation="h",
@@ -340,10 +381,12 @@ elif page == "Site Factors of Commodity Suitability":
     st.plotly_chart(fig_rank, use_container_width=True)
     if len(agg) >= 3:
         interp(f"Top three: {', '.join(agg.head(3)['MUNI_CITY'].tolist())}. Lowest-ranked: {agg.iloc[-1]['MUNI_CITY']}.")
+        
     pivot = pd.crosstab([fdf["MUNI_CITY"], fdf["BARANGAY"]], fdf["COMMODITY"])
     st.markdown("### Resource Allocation Matrix — Commodity Counts by Municipality and Barangay")
     st.dataframe(pivot, use_container_width=True)
     interp("Cells quantify how many NGP parcels of each commodity class exist per barangay, enabling allocation of seedling stock and extension officers to the exact administrative unit.")
+    
     fig_sc = px.scatter(fdf, x="YR_ESTAB", y="AREA_HA", color="COMMODITY", size="AREA_HA",
                         hover_data=["MUNI_CITY", "BARANGAY", "TENURE"], title="Establishment Year vs. Area by Commodity",
                         color_discrete_sequence=px.colors.qualitative.Teal)
@@ -354,15 +397,19 @@ elif page == "Site Factors of Commodity Suitability":
 elif page == "Predictive Model Construction":
     st.markdown("## Predictive Model Construction")
     justify("Random Forest is the primary algorithm because it handles mixed categorical-numeric features, resists overfitting through bagging, and produces native feature importances. Gradient Boosting, SVM, XGBoost, and MaxEnt are trained as comparators to satisfy the multi-algorithm scope in Chapter 3. Hyperparameters for Random Forest are selected via GridSearchCV over n_estimators, max_depth, min_samples_split, and min_samples_leaf with 10-fold stratified cross-validation. A fixed 80/20 train-test split with stratification preserves class proportions. Macro and weighted averages are both reported to manage class imbalance.")
+    
     model_df, fallback = ensure_model_df()
     if fallback:
         warn("Current drill-down selection has fewer than 30 records or fewer than two commodity classes. Modeling is run on the full cleaned dataset to preserve class representation; the drill-down filter still applies to all descriptive tabs.")
+    
     with st.spinner("Training classifiers, running grid search, and scoring 10-fold CV..."):
         best_params, best_cv = run_gridsearch(model_df)
         models, feat_names, le, scaler, Xtr, Xte, ytr, yte, X_scaled, y_enc, cv_scores = train_all(model_df)
+        
     st.markdown("### Grid Search Result — Random Forest")
     st.markdown(f"Best parameters: `{best_params}` | Best 10-fold cross-validated macro-F1: **{best_cv:.4f}**")
     interp("Grid search selected the hyperparameter combination that maximized macro-averaged F1 under 10-fold stratified cross-validation, balancing precision and recall across all five commodity classes rather than favoring the majority class.")
+    
     st.markdown("### 10-Fold Cross-Validation Summary")
     cv_rows = []
     for name, scores in cv_scores.items():
@@ -372,6 +419,7 @@ elif page == "Predictive Model Construction":
                         "CV F1 Std": round(float(np.std(valid)), 4) if len(valid) else np.nan})
     st.dataframe(pd.DataFrame(cv_rows).sort_values("CV F1 Mean", ascending=False), use_container_width=True, hide_index=True)
     interp("Cross-validated F1 mean and standard deviation are reported per algorithm; low standard deviation indicates stable generalization across folds, while a high mean identifies the most reliable candidate for operational deployment.")
+    
     st.markdown("### Class Distribution in Modeling Set")
     dist = model_df["COMMODITY"].value_counts().reset_index()
     dist.columns = ["Commodity", "Count"]
@@ -388,8 +436,10 @@ elif page == "Model Performance & Feature Importance":
     model_df, fallback = ensure_model_df()
     if fallback:
         warn("Modeling is run on the full cleaned dataset because the drill-down selection is too small for stratified evaluation.")
+        
     with st.spinner("Evaluating models, computing ROC curves and SHAP values..."):
         models, feat_names, le, scaler, Xtr, Xte, ytr, yte, X_scaled, y_enc, cv_scores = train_all(model_df)
+        
     rows = []
     roc_data = {}
     cm_data = {}
@@ -414,17 +464,21 @@ elif page == "Model Performance & Feature Importance":
                 roc_data[name] = (proba, yte, le.classes_)
         except Exception:
             roc_data[name] = None
+            
     perf = pd.DataFrame(rows).sort_values("F1 (macro)", ascending=False).reset_index(drop=True)
     best = perf.iloc[0]
+    
     c1, c2, c3, c4 = st.columns(4)
     with c1: kpi("Accuracy", f"{best['Accuracy']*100:.1f}%")
     with c2: kpi("Precision (macro)", f"{best['Precision (macro)']*100:.1f}%")
     with c3: kpi("Recall (macro)", f"{best['Recall (macro)']*100:.1f}%")
     with c4: kpi("F1 (macro)", f"{best['F1 (macro)']*100:.1f}%")
     interp(f"Best-performing algorithm is {best['Model']} with macro-F1 {best['F1 (macro)']:.4f}. Macro averaging weights every commodity class equally, which is the appropriate summary under class imbalance; weighted averages are also reported for comparability with the literature.")
+    
     st.markdown("### Comparative Model Metrics — Macro and Weighted Averages")
     st.dataframe(perf, use_container_width=True, hide_index=True)
     interp("Random Forest and Gradient Boosting generally lead on macro-F1; SVM is competitive but slower to calibrate; XGBoost and MaxEnt are included where their libraries are available in the runtime environment.")
+    
     st.markdown("### Confusion Matrix — Best Model")
     cm = cm_data[best["Model"]]
     fig_cm = px.imshow(cm, text_auto=True, x=list(le.classes_), y=list(le.classes_),
@@ -432,6 +486,7 @@ elif page == "Model Performance & Feature Importance":
     fig_cm.update_layout(height=420, xaxis_title="Predicted", yaxis_title="Actual")
     st.plotly_chart(fig_cm, use_container_width=True)
     interp("Diagonal cells are correct predictions; off-diagonal cells reveal systematic confusions between commodity classes, particularly between Agroforestry and High Value where species lists overlap.")
+    
     st.markdown("### ROC-AUC Curves — One-vs-Rest")
     fig_roc = go.Figure()
     for name, data in roc_data.items():
@@ -453,6 +508,7 @@ elif page == "Model Performance & Feature Importance":
     fig_roc.update_layout(height=480, xaxis_title="False Positive Rate", yaxis_title="True Positive Rate", title="ROC Curves — One-vs-Rest per Commodity Class")
     st.plotly_chart(fig_roc, use_container_width=True)
     interp("AUC values above 0.80 indicate strong separability for that commodity class; curves close to the diagonal indicate classes the model cannot distinguish and that require additional predictors such as soil or climate variables.")
+    
     st.markdown("### Feature Importance — Random Forest")
     rf = models.get("Random Forest")
     if rf is not None:
@@ -463,8 +519,8 @@ elif page == "Model Performance & Feature Importance":
         st.plotly_chart(fig_imp, use_container_width=True)
         top_feat = imp.iloc[0]["Feature"]
         interp(f"Strongest predictor is {top_feat}, followed by {imp.iloc[1]['Feature']} and {imp.iloc[2]['Feature']}. Site location and tenure variables dominate over establishment year, indicating that administrative and spatial context drives commodity assignment more than temporal factors.")
+        
     st.markdown("### SHAP Explainability — Random Forest")
-    shap_ok = False
     try:
         import shap
         Xte_df = pd.DataFrame(Xte, columns=feat_names)
@@ -479,10 +535,10 @@ elif page == "Model Performance & Feature Importance":
                           color="Mean_Abs_SHAP", color_continuous_scale="Teal", title="Mean Absolute SHAP Value — Top 15 Features")
         fig_shap.update_layout(height=450, showlegend=False, yaxis_title="")
         st.plotly_chart(fig_shap, use_container_width=True)
-        shap_ok = True
         interp("SHAP values quantify each feature's marginal contribution to individual predictions and are consistent across the dataset. The top SHAP feature typically matches the top impurity-importance feature, which cross-validates the ranking.")
     except Exception as e:
         warn(f"SHAP library is not available in this runtime ({e}). Install `shap` to enable the explainability panel; feature importance from Random Forest remains shown above.")
+        
     st.markdown("### LIME Local Explanation — First Test Record")
     try:
         import lime.lime_tabular as lime_tab
@@ -495,8 +551,8 @@ elif page == "Model Performance & Feature Importance":
         interp("LIME reports the local feature weights for a single test instance. Weights are instance-specific and complement SHAP's global view by exposing why the model assigned a particular commodity class to one parcel.")
     except Exception as e:
         warn(f"LIME library is not available in this runtime ({e}). Install `lime` to enable local explanation of individual predictions.")
+        
     st.markdown("### K-Means Clustering — Site Archetypes")
-    kmeans_ok = False
     if len(X_scaled) >= 10 and len(le.classes_) >= 2:
         try:
             n_clusters = min(4, len(le.classes_))
@@ -518,12 +574,12 @@ elif page == "Model Performance & Feature Importance":
             st.plotly_chart(fig_cl, use_container_width=True)
             cluster_summary = cluster_df.groupby("Cluster").agg(Parcels=("Commodity", "size")).reset_index()
             st.dataframe(cluster_summary, use_container_width=True, hide_index=True)
-            kmeans_ok = True
             dominant = cluster_df["Cluster"].value_counts().index[0]
             dom_comm = cluster_df[cluster_df["Cluster"] == dominant]["Commodity"].mode().iloc[0]
             interp(f"K-Means partitioned the site feature space into {n_clusters} archetypes. Cluster {dominant} is the largest and is dominated by {dom_comm}, indicating a distinct site-profile group that CENRO can target with a standardized commodity package.")
         except Exception as e:
             warn(f"K-Means could not be computed: {e}")
+            
     st.markdown("### Correlation of Continuous Predictors")
     corr_df = model_df[NUM_FEATURES].dropna()
     if len(corr_df) > 2:
@@ -540,19 +596,24 @@ elif page == "Commodity Selection Recommendations":
     model_df, fallback = ensure_model_df()
     if fallback:
         warn("Modeling is run on the full cleaned dataset because the drill-down selection is too small for stratified evaluation.")
+        
     with st.spinner("Generating predictions..."):
         models, feat_names, le, scaler, Xtr, Xte, ytr, yte, X_scaled, y_enc, cv_scores = train_all(model_df)
+        
     best_name = max(models.keys(), key=lambda n: f1_score(yte, models[n].predict(Xte), average="macro", zero_division=0))
     best_model = models[best_name]
+    
     X_all = model_df[CAT_FEATURES + NUM_FEATURES].copy()
     X_all_enc = pd.get_dummies(X_all, columns=CAT_FEATURES, drop_first=False).reindex(columns=feat_names, fill_value=0)
     X_all_scaled = scaler.transform(X_all_enc)
     proba = best_model.predict_proba(X_all_scaled)
     pred_idx = proba.argmax(axis=1)
+    
     model_df = model_df.copy()
     model_df["Predicted_Commodity"] = le.inverse_transform(pred_idx)
     model_df["Prediction_Confidence"] = proba.max(axis=1)
     model_df["Mean_Predicted_Risk"] = 1 - model_df["Prediction_Confidence"]
+    
     risk = model_df.groupby("MUNI_CITY").agg(Mean_Predicted_Risk=("Mean_Predicted_Risk", "mean"), Records=("Predicted_Commodity", "size")).reset_index().sort_values("Mean_Predicted_Risk", ascending=False)
     fig_risk = px.bar(risk, x="Mean_Predicted_Risk", y="MUNI_CITY", orientation="h", color="Mean_Predicted_Risk",
                       color_continuous_scale="OrRd", title=f"Mean Prediction Uncertainty (1 − Confidence) by Municipality — {best_name}")
@@ -560,21 +621,26 @@ elif page == "Commodity Selection Recommendations":
     st.plotly_chart(fig_risk, use_container_width=True)
     if len(risk):
         interp(f"{risk.iloc[0]['MUNI_CITY']} shows the highest mean prediction uncertainty ({risk.iloc[0]['Mean_Predicted_Risk']:.3f}), identifying it as the priority area for field verification and commodity review before seedling disbursement.")
+        
     st.markdown("### Predicted Commodity per Municipality")
     pred_pivot = pd.crosstab(model_df["MUNI_CITY"], model_df["Predicted_Commodity"])
     st.dataframe(pred_pivot, use_container_width=True)
     interp("The matrix aggregates model-predicted commodity classes per municipality, offering CENRO a quantitative basis for matching seedling production schedules to site-level predictions.")
+    
     st.markdown("### Commodity Probability Matrix — Top Recommendations per Municipality")
     proba_df = pd.DataFrame(proba, columns=le.classes_)
     proba_df["MUNI_CITY"] = model_df["MUNI_CITY"].values
     proba_agg = proba_df.groupby("MUNI_CITY").mean().round(3)
     st.dataframe(proba_agg, use_container_width=True)
     interp("Each cell is the model's mean predicted probability that a parcel in that municipality belongs to the corresponding commodity class. The highest column per row is the model's recommended priority commodity for that municipality.")
+    
     st.markdown("### Record-Level Predictions")
     export_cols = ["FID", "UNIQ_ID", "MUNI_CITY", "BARANGAY", "TENURE", "ZONE", "PART_TYP", "YR_ESTAB", "AREA_HA", "COMMODITY", "Predicted_Commodity", "Prediction_Confidence", "Mean_Predicted_Risk"]
     export_cols = [c for c in export_cols if c in model_df.columns]
     st.dataframe(model_df[export_cols].head(500), use_container_width=True, hide_index=True)
+    
     csv = model_df[export_cols].to_csv(index=False).encode("utf-8")
     st.download_button("Download Record-Level Predictions (CSV)", data=csv, file_name="cenro_bunawan_ngp_predictions.csv", mime="text/csv")
     interp("The downloadable file contains record-level predicted commodity, prediction confidence, and uncertainty for all parcels in the current selection, intended for integration into CENRO planning spreadsheets.")
+    
     warn("Recommendations are model-derived and should be validated against field inspection and species-site matching guidelines before operational use. The model reflects historical NGP assignment patterns in CENRO Bunawan and does not incorporate soil chemistry, climate projections, or seedling survival data.")
