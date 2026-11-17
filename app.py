@@ -44,55 +44,29 @@ st.markdown("""
     .justify-box { background-color: #eef2f7; border-left: 5px solid #35558a; padding: 0.8rem 1.2rem;
                    border-radius: 4px; font-size: 0.9rem; color: #1e2f4d; margin: 0.5rem 0 1rem 0; }
     
-    /* Sidebar Dark Theme */
-    section[data-testid="stSidebar"] { background-color: #0f3d3d; }
-    section[data-testid="stSidebar"] * { color: #e6f2f2 !important; }
+    /* Sidebar Light Theme */
+    section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e0e0e0; }
+    section[data-testid="stSidebar"] h3 { color: #0f3d3d; margin-top: 1rem; }
+    section[data-testid="stSidebar"] label { color: #333333 !important; font-weight: 600; }
     
-    /* Sidebar File Uploader Override */
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] { background-color: transparent !important; }
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] > div {
-        border-color: #2a8a86 !important; background-color: #14514f !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] div[data-testid="stMarkdownContainer"] p,
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] div[data-testid="stFileUploaderDropzone"] span {
-        color: #e6f2f2 !important; 
-    }
-    section[data-testid="stSidebar"] [data-testid="stFileUploader"] button {
-        background-color: #1a6b67 !important; color: #ffffff !important; border: 1px solid #2a8a86 !important;
-    }
-
-    /* Sidebar Dropdowns Override (Closed and Open states) */
+    /* Sidebar Dropdowns Override */
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
-        background-color: #14514f !important; 
-        border-color: #2a8a86 !important; 
-        color: #e6f2f2 !important;
+        background-color: #f9f9f9 !important; 
+        border-color: #cccccc !important; 
+        color: #333333 !important;
     }
-    section[data-testid="stSidebar"] div[data-baseweb="popover"] div {
-        background-color: #14514f !important; 
-        color: #e6f2f2 !important;
-    }
-    section[data-testid="stSidebar"] div[data-baseweb="popover"] div:hover {
-        background-color: #1a6b67 !important; 
-    }
-    section[data-testid="stSidebar"] ul[role="listbox"] li {
-        color: #e6f2f2 !important;
-        background-color: #14514f !important;
-    }
-    section[data-testid="stSidebar"] ul[role="listbox"] li:hover {
-        background-color: #1a6b67 !important;
-    }
-
+    
     /* Sidebar Navigation (Radio Buttons as Tabs) */
     section[data-testid="stSidebar"] .stRadio > div { gap: 0.4rem; }
     section[data-testid="stSidebar"] .stRadio label {
-        background-color: #14514f; border: 1.5px solid #2a8a86; border-radius: 6px;
+        background-color: #f9f9f9; border: 1.5px solid #e0e0e0; border-radius: 6px;
         padding: 0.6rem 0.9rem; margin: 0; width: 100%; cursor: pointer;
-        font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease-in-out; }
-    section[data-testid="stSidebar"] .stRadio label:hover { background-color: #1a6b67; border-color: #4fc3b8; }
+        font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease-in-out; color: #333333; }
+    section[data-testid="stSidebar"] .stRadio label:hover { background-color: #f0f0f0; border-color: #cccccc; }
     section[data-testid="stSidebar"] .stRadio label[data-checked="true"],
     section[data-testid="stSidebar"] .stRadio input:checked + div {
-        background-color: #ffffff !important; color: #0f3d3d !important; border-color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-    section[data-testid="stSidebar"] .stRadio input:checked + div p { color: #0f3d3d !important; font-weight: 800; }
+        background-color: #0f3d3d !important; color: #ffffff !important; border-color: #0f3d3d; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    section[data-testid="stSidebar"] .stRadio input:checked + div p { color: #ffffff !important; font-weight: 800; }
     section[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none; }
     
     /* Dataframes */
@@ -154,7 +128,6 @@ def load_and_clean(file_bytes, filename):
     if filename.lower().endswith(".csv"):
         df = pd.read_csv(io.BytesIO(file_bytes))
     else:
-        # Dynamically find the header row in Excel
         raw_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=0, header=None)
         header_row = 0
         for i, row in raw_df.iterrows():
@@ -227,7 +200,6 @@ def justify(text):
 
 st.sidebar.markdown("### Data Input")
 uploaded = st.sidebar.file_uploader("Upload CENRO Bunawan NGP dataset (CSV or Excel)", type=["csv", "xlsx", "xls"])
-centroids_upload = st.sidebar.file_uploader("Optional: Barangay centroid lookup (CSV: BARANGAY, lat, lon)", type=["csv"])
 
 if uploaded is None:
     st.info("Awaiting dataset upload. Use the sidebar file uploader to load the CENRO Bunawan NGP dataset (CSV or Excel). No example dataset is bundled; the dashboard will not render until a valid file is provided.")
@@ -244,14 +216,6 @@ if len(df) == 0:
     st.stop()
 
 centroids = dict(BARANGAY_CENTROIDS)
-if centroids_upload is not None:
-    try:
-        cdf = pd.read_csv(centroids_upload)
-        cdf.columns = [c.strip().lower() for c in cdf.columns]
-        for _, r in cdf.iterrows():
-            centroids[(clean_text(r.get("municipality", "")), clean_text(r["barangay"]))] = (float(r["lat"]), float(r["lon"]))
-    except Exception as e:
-        st.sidebar.warning(f"Centroid file ignored: {e}")
 
 st.sidebar.markdown("### Drill-Down Filter")
 municipality_options = ["All Municipalities"] + sorted(df["MUNI_CITY"].dropna().unique().tolist())
@@ -398,11 +362,11 @@ elif page == "Site Factors of Commodity Suitability":
     if len(mappable) == 0:
         warn("No barangay centroid coordinates are available for the current selection. Supply the optional centroid CSV in the sidebar to render the geographic panel.")
     else:
-        # FIXED: Replaced scatter_mapbox with scatter_map for modern Plotly compatibility
         fig_map = px.scatter_map(mappable, lat="lat", lon="lon", size="Records", color="Records",
                                     hover_name="BARANGAY", hover_data=["MUNI_CITY", "Area_HA", "Commodity_Diversity"],
-                                    color_continuous_scale="Teal", size_max=45, zoom=9,
+                                    color_continuous_scale="Teal", zoom=9,
                                     map_style="carto-positron", title="NGP Parcel Concentration by Barangay")
+        fig_map.update_traces(marker=dict(size=15))
         fig_map.update_layout(height=480, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_map, use_container_width=True)
         top = mappable.sort_values("Records", ascending=False).iloc[0]
