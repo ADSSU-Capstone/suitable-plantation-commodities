@@ -53,7 +53,6 @@ st.markdown("""
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] > div {
         border-color: #2a8a86 !important; background-color: #14514f !important;
     }
-    /* Force text inside uploader to be readable */
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] div[data-testid="stMarkdownContainer"] p,
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] div[data-testid="stFileUploaderDropzone"] span {
         color: #e6f2f2 !important; 
@@ -62,11 +61,27 @@ st.markdown("""
         background-color: #1a6b67 !important; color: #ffffff !important; border: 1px solid #2a8a86 !important;
     }
 
-    /* Sidebar Dropdowns Override */
+    /* Sidebar Dropdowns Override (Closed and Open states) */
     section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
-        background-color: #14514f !important; border-color: #2a8a86 !important; color: #e6f2f2 !important;
+        background-color: #14514f !important; 
+        border-color: #2a8a86 !important; 
+        color: #e6f2f2 !important;
     }
-    
+    section[data-testid="stSidebar"] div[data-baseweb="popover"] div {
+        background-color: #14514f !important; 
+        color: #e6f2f2 !important;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="popover"] div:hover {
+        background-color: #1a6b67 !important; 
+    }
+    section[data-testid="stSidebar"] ul[role="listbox"] li {
+        color: #e6f2f2 !important;
+        background-color: #14514f !important;
+    }
+    section[data-testid="stSidebar"] ul[role="listbox"] li:hover {
+        background-color: #1a6b67 !important;
+    }
+
     /* Sidebar Navigation (Radio Buttons as Tabs) */
     section[data-testid="stSidebar"] .stRadio > div { gap: 0.4rem; }
     section[data-testid="stSidebar"] .stRadio label {
@@ -383,10 +398,11 @@ elif page == "Site Factors of Commodity Suitability":
     if len(mappable) == 0:
         warn("No barangay centroid coordinates are available for the current selection. Supply the optional centroid CSV in the sidebar to render the geographic panel.")
     else:
-        fig_map = px.scatter_mapbox(mappable, lat="lat", lon="lon", size="Records", color="Records",
+        # FIXED: Replaced scatter_mapbox with scatter_map for modern Plotly compatibility
+        fig_map = px.scatter_map(mappable, lat="lat", lon="lon", size="Records", color="Records",
                                     hover_name="BARANGAY", hover_data=["MUNI_CITY", "Area_HA", "Commodity_Diversity"],
                                     color_continuous_scale="Teal", size_max=45, zoom=9,
-                                    mapbox_style="carto-positron", title="NGP Parcel Concentration by Barangay")
+                                    map_style="carto-positron", title="NGP Parcel Concentration by Barangay")
         fig_map.update_layout(height=480, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_map, use_container_width=True)
         top = mappable.sort_values("Records", ascending=False).iloc[0]
