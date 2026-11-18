@@ -515,107 +515,83 @@ elif page == "Model Performance & Feature Importance":
     
     st.markdown("### SHAP Explainability — Random Forest")
 
-    try:
-        import shap
+        # Retrieve the trained Random Forest model
+    rf = models.get("Random Forest")
 
-        # Prepare test data with the correct feature names
-        Xte_df = pd.DataFrame(Xte, columns=feat_names)
+    if rf is None:
+        warn("Random Forest model is unavailable.")
+    else:
+        try:
+            import shap
 
-        # Create TreeExplainer for Random Forest
-        explainer = shap.TreeExplainer(rf)
+            Xte_df = pd.DataFrame(Xte, columns=feat_names)
 
-        # Calculate SHAP values
-        shap_values = explainer.shap_values(Xte_df)
+            explainer = shap.TreeExplainer(rf)
+            shap_values = explainer.shap_values(Xte_df)
 
-        # Convert SHAP output into a NumPy array
-        if hasattr(shap_values, "values"):
-            shap_values = shap_values.values
+            if hasattr(shap_values, "values"):
+                shap_values = shap_values.values
 
-        if isinstance(shap_values, list):
-            # Older SHAP versions: separate array for each class
-            shap_array = np.stack(
-                [np.asarray(v) for v in shap_values],
-                axis=-1
-            )
-        else:
-            shap_array = np.asarray(shap_values)
+            if isinstance(shap_values, list):
+                shap_array = np.stack(
+                    [np.asarray(v) for v in shap_values],
+                    axis=-1
+                )
+            else:
+                shap_array = np.asarray(shap_values)
 
-        # Calculate one-dimensional mean absolute SHAP importance
-        if shap_array.ndim == 3:
+            if shap_array.ndim == 3:
+                if shap_array.shape[1] == len(feat_names):
+                    mean_abs = np.abs(shap_array).mean(axis=(0, 2))
+                elif shap_array.shape[2] == len(feat_names):
+                    mean_abs = np.abs(shap_array).mean(axis=(0, 1))
+                else:
+                    raise ValueError(
+                        f"Unexpected SHAP shape: {shap_array.shape}"
+                    )
 
-            # Expected format:
-            # samples x features x classes
-            if shap_array.shape[1] == len(feat_names):
-                mean_abs = np.abs(shap_array).mean(axis=(0, 2))
-
-            # Alternative format:
-            # samples x classes x features
-            elif shap_array.shape[2] == len(feat_names):
-                mean_abs = np.abs(shap_array).mean(axis=(0, 1))
-
+            elif shap_array.ndim == 2:
+                mean_abs = np.abs(shap_array).mean(axis=0)
             else:
                 raise ValueError(
-                    f"Unexpected SHAP shape: {shap_array.shape}"
+                    f"Unsupported SHAP dimensions: {shap_array.shape}"
                 )
 
-        elif shap_array.ndim == 2:
-            mean_abs = np.abs(shap_array).mean(axis=0)
+            if len(mean_abs) != len(feat_names):
+                raise ValueError("Feature dimensions do not match.")
 
-        else:
-            raise ValueError(
-                f"Unsupported SHAP dimensions: {shap_array.shape}"
+            shap_df = pd.DataFrame({
+                "Feature": feat_names,
+                "Mean_Abs_SHAP": mean_abs
+            }).sort_values(
+                "Mean_Abs_SHAP", ascending=False
+            ).head(15)
+
+            fig_shap = px.bar(
+                shap_df.sort_values("Mean_Abs_SHAP"),
+                x="Mean_Abs_SHAP",
+                y="Feature",
+                orientation="h",
+                color="Mean_Abs_SHAP",
+                color_continuous_scale="Teal",
+                title="Mean Absolute SHAP Value — Top 15 Features"
             )
 
-        # Verify dimensions before creating DataFrame
-        if len(mean_abs) != len(feat_names):
-            raise ValueError(
-                "SHAP feature count does not match model feature names."
+            fig_shap.update_layout(height=450, showlegend=False)
+            st.plotly_chart(fig_shap, use_container_width=True)
+
+            interp(
+                "Mean absolute SHAP values summarize feature "
+                "contributions across test records and commodity classes."
             )
 
-        # Build feature importance table
-        shap_df = pd.DataFrame({
-            "Feature": feat_names,
-            "Mean_Abs_SHAP": mean_abs
-        })
+        except ImportError:
+            warn("SHAP is not installed. Add shap to requirements.txt.")
 
-        shap_df = shap_df.sort_values(
-            "Mean_Abs_SHAP",
-            ascending=False
-        ).head(15)
-
-        # Visualize SHAP importance
-        fig_shap = px.bar(
-            shap_df.sort_values("Mean_Abs_SHAP"),
-            x="Mean_Abs_SHAP",
-            y="Feature",
-            orientation="h",
-            color="Mean_Abs_SHAP",
-            color_continuous_scale="Teal",
-            title="Mean Absolute SHAP Value — Top 15 Features"
-        )
-
-        fig_shap.update_layout(
-            height=450,
-            showlegend=False,
-            yaxis_title=""
-        )
-
-        st.plotly_chart(fig_shap, use_container_width=True)
-
-        interp(
-            "SHAP values quantify the contribution of each feature "
-            "to model predictions. Mean absolute SHAP values are "
-            "averaged across test records and commodity classes, "
-            "providing a global feature importance ranking."
-        )
-
-    except ImportError as e:
-        warn(f"SHAP installation error: {e}. Add shap to requirements.txt.")
-
-    except Exception as e:
-        st.error(f"SHAP Error: {e}")
-        st.exception(e)
-
+        except Exception as e:
+            st.error(f"SHAP calculation error: {e}")
+            st.exception(e)
+          
     st.markdown("### K-Means Clustering — Site Archetypes")
     if len(X_scaled) >= 10 and len(le.classes_) >= 2:
         try:
