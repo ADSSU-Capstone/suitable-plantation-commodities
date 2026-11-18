@@ -612,7 +612,7 @@ elif page == "Model Performance & Feature Importance":
     except ImportError as e:
         warn(f"SHAP installation error: {e}. Add shap to requirements.txt.")
 
-   except Exception as e:
+    except Exception as e:
     st.error(f"SHAP Error: {e}")
     st.exception(e)
 
