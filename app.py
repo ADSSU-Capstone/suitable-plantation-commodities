@@ -612,8 +612,10 @@ elif page == "Model Performance & Feature Importance":
     except ImportError as e:
         warn(f"SHAP installation error: {e}. Add shap to requirements.txt.")
 
-    except Exception as e:
-        warn(f"SHAP calculation error: {type(e).__name__}: {e}")
+   except Exception as e:
+    st.error(f"SHAP Error: {e}")
+    st.exception(e)
+
     st.markdown("### K-Means Clustering — Site Archetypes")
     if len(X_scaled) >= 10 and len(le.classes_) >= 2:
         try:
