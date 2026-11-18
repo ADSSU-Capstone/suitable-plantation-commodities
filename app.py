@@ -513,23 +513,6 @@ elif page == "Model Performance & Feature Importance":
     st.plotly_chart(fig_roc, use_container_width=True)
     interp("AUC values above 0.80 indicate strong separability for that commodity class; curves close to the diagonal indicate classes the model cannot distinguish and that require additional predictors such as soil or climate variables.")
     
-    st.markdown("### Feature Importance — Random Forest")
-    rf = models.get("Random Forest")
-    if rf is not None:
-        imp = pd.DataFrame({"Feature": feat_names, "Importance": rf.feature_importances_}).sort_values("Importance", ascending=False).head(15)
-        fig_imp = px.bar(imp.sort_values("Importance"), x="Importance", y="Feature", orientation="h",
-                         color="Importance", color_continuous_scale="Teal", title="Top 15 Feature Importances")
-        fig_imp.update_layout(height=450, showlegend=False, yaxis_title="")
-        st.plotly_chart(fig_imp, use_container_width=True)
-        top_feat = imp.iloc[0]["Feature"]
-        interp(f"Strongest predictor is {top_feat}, followed by {imp.iloc[1]['Feature']} and {imp.iloc[2]['Feature']}. Site location and tenure variables dominate over establishment year, indicating that administrative and spatial context drives commodity assignment more than temporal factors.")
-        
-    st.markdown("### SHAP Explainability — Random Forest")
-    try:
-        import shap
-        Xte_df = pd.DataFrame(Xte, columns=feat_names)
-        explainer = shap.TreeExplainer(rf)
-        shap_values = explainer.shap_values(Xte_df)
     st.markdown("### SHAP Explainability — Random Forest")
 
     try:
@@ -631,33 +614,6 @@ elif page == "Model Performance & Feature Importance":
 
     except Exception as e:
         warn(f"SHAP calculation error: {type(e).__name__}: {e}")
-
-        if isinstance(shap_values, list):
-            mean_abs = np.mean([np.abs(sv).mean(axis=0) for sv in shap_values], axis=0)
-        else:
-            mean_abs = np.abs(shap_values).mean(axis=0)
-        shap_df = pd.DataFrame({"Feature": feat_names, "Mean_Abs_SHAP": mean_abs}).sort_values("Mean_Abs_SHAP", ascending=False).head(15)
-        fig_shap = px.bar(shap_df.sort_values("Mean_Abs_SHAP"), x="Mean_Abs_SHAP", y="Feature", orientation="h",
-                          color="Mean_Abs_SHAP", color_continuous_scale="Teal", title="Mean Absolute SHAP Value — Top 15 Features")
-        fig_shap.update_layout(height=450, showlegend=False, yaxis_title="")
-        st.plotly_chart(fig_shap, use_container_width=True)
-        interp("SHAP values quantify each feature's marginal contribution to individual predictions and are consistent across the dataset. The top SHAP feature typically matches the top impurity-importance feature, which cross-validates the ranking.")
-    except Exception as e:
-        warn(f"SHAP library is not available in this runtime ({e}). Install `shap` to enable the explainability panel; feature importance from Random Forest remains shown above.")
-        
-    st.markdown("### LIME Local Explanation — First Test Record")
-    try:
-        import lime.lime_tabular as lime_tab
-        Xtr_df = pd.DataFrame(Xtr, columns=feat_names)
-        explainer_lime = lime_tab.LimeTabularExplainer(Xtr_df.values, feature_names=feat_names,
-                                                       class_names=list(le.classes_), mode="classification")
-        exp = explainer_lime.explain_instance(Xte[0], rf.predict_proba, num_features=8)
-        lime_rows = [{"Feature": f, "Weight": w} for f, w in exp.as_list()]
-        st.dataframe(pd.DataFrame(lime_rows), use_container_width=True, hide_index=True)
-        interp("LIME reports the local feature weights for a single test instance. Weights are instance-specific and complement SHAP's global view by exposing why the model assigned a particular commodity class to one parcel.")
-    except Exception as e:
-        warn(f"LIME library is not available in this runtime ({e}). Install `lime` to enable local explanation of individual predictions.")
-        
     st.markdown("### K-Means Clustering — Site Archetypes")
     if len(X_scaled) >= 10 and len(le.classes_) >= 2:
         try:
